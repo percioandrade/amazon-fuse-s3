@@ -1,0 +1,374 @@
+#!/bin/bash
+##################################################################
+# Author  : Percio Andrade
+# Email   : perciocastelo@gmail.com
+# Info    : Shell script to install s3 on server
+# Version : 2.0
+# changelog :
+# 1.0 -|
+#       Initial Release
+#
+# 2.0 -|
+#       Major bugs fixed
+#       Added Compile Fuse
+#       Added Compile S3FS
+#       Added Configure Key
+#       Added CheckUser and CheckFTP
+#       Added Instal VSFTP
+#       Added RemoveBucket
+#       Added Enable Option
+#       Added Install Option
+#       Added Remove Option
+#       Change Library RPM on install
+#       Change to fstab on moutpoint
+#       Added fstab
+#       Added remove on fstab
+##################################################################
+VERSION=2.0
+
+if [ -z "$1" -a "$1" != " " ];then
+        echo -e "\nPlease insert at least one argument\n"
+        echo -e "Use -h to check commands\n"
+        exit
+fi
+
+if [[ $1 == "--install" ]]||[[ $1 == "-i" ]];then
+
+        # REMOVE OLD FUSE
+        CHECK_FUSE=$(rpm -qa|grep fuse)
+
+        if [[ -e $CHECK_FUSE ]];then
+        yum remove -y fuse fuse-s3fs
+        fi
+fi
+
+# CHECK DEPENDECIES
+CHECK_DEP=$(for check in `echo libstdc++-devel curl-devel automake gcc  gcc-c++ git libxml2-devel make openssl-devel`;do yum -q list installed $check &>/dev/null && echo "Installed"||echo "Not installed";done|grep -o  "Not installed"|head -1)
+
+if [[ ! -n $CHECK_DEP ]];then
+        echo "[!] - Dependencies not found"
+        yum install -y libstdc++-devel curl-devel automake gcc  gcc-c++ git libxml2-devel make openssl-devel
+fi
+
+# COMPILE FUSE
+if [[ -n /usr/src/libfuse ]];then
+        if [[ "$2" == "-f" ]]||[[ "$2" == "--force" ]];then
+        echo "[!] - Removing fuse"
+        rm -rf /usr/local/src/fuse-2.9.4/
+        cd /usr/local/src/
+        wget http://git.hostfox.com.br/am-s3/fuse-2.9.4.tar.gz
+        tar xzf fuse-2.9.4.tar.gz
+        cd fuse-2.9.4
+        ./configure --prefix=/usr/local
+        make && make install
+        export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig
+        ldconfig
+        modprobe fuse
+        fi
+else
+        cd /usr/local/src/
+        wget http://git.hostfox.com.br/am-s3/fuse-2.9.4.tar.gz
+        tar xzf fuse-2.9.4.tar.gz
+        cd fuse-2.9.4
+        ./configure --prefix=/usr/local
+        make && make install
+        export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig
+        ldconfig
+        modprobe fuse
+fi
+
+# CHECK IF SF3-FUSE HAS COMPILED
+if [[ ! -z /usr/local/bin/s3fs ]];then
+        if [[ "$2" == "-f" ]]||[[ "$2" == "--force" ]];then
+        echo "[!] - Removing s3fs."
+        rm -rf /usr/local/src/s3fs-fuse/
+        cd /usr/local/src/
+        git clone https://github.com/s3fs-fuse/s3fs-fuse.git
+        cd s3fs-fuse
+        ./autogen.sh
+        ./configure
+        make
+        make install
+        fi
+else
+        echo "[!] - s3fs not found."
+        cd /usr/local/src/
+        git clone https://github.com/s3fs-fuse/s3fs-fuse.git
+        cd s3fs-fuse
+        ./autogen.sh
+        ./configure
+        make
+        make install
+fi
+
+# ENABLE FUSE S3
+CHECK_FUSE_ENABLE=$(grep -o "/usr/local/lib/" /etc/ld.so.conf)
+if [[ -z $CHECK_FUSE_ENABLE ]];then
+        ed -s /etc/ld.so.conf <<< $'1i\n/usr/local/lib/\n.\nwq' # Enable on system
+        ldconfig
+fi
+
+if [[ -z "~/.passwd-s3fs" ]];then
+        echo -e "[!] - Creating configuration file..."
+        echo "[!] - Insert your details"
+        read -ep "Insert AWS Key: " ACESSKEY
+        read -ep "Insert AWS PrivateKey: " PRIVATEKEY
+        echo "$ACESSKEY:$PRIVATEKEY" > ~/.passwd-s3fs
+        touch ~/.passwd-s3fs # on root
+        chmod 600 ~/.passwd-s3fs
+        echo user_allow_other >> /etc/fuse.conf # Enable normal users to access on FTP
+        echo "[+] - S3Fuse Configured"
+fi
+
+# CHECK KEY FROM AMAZON
+if [[ ! -s ~/.passwd-s3fs ]];then
+        echo -e  "\n[!] - Fail. Key is empty, please ask to a sysadmin L2/L3 to add  key from amazon S3 on ~/.passwd-s3fs .
+        accessKeyId:secretAccessKey - https://console.aws.amazon.com/iam/home?region=sa-east-1#security_credential"
+        exit
+fi
+
+# ENABLE BUCKET
+if [[ "$1" == "-e" ]]||[[ "$1" = "--enable" ]];then
+echo -e "\n-----------------------------------------------------------------
+                        HostFox - buckets3
+-----------------------------------------------------------------\n"
+        read -ep "Insert the bucket name: " BUCKET
+        read -ep "Insert the username to install bucket: " USER
+
+        if [ -z $BUCKET -a -z $USER ];then
+                echo -e "\n[!] - All values in empty, try again.\n"
+        exit
+        fi
+
+function LOG_FILES(){
+               echo "[+] - Creating log file"
+                echo -e "DATE: $(date)          BUCKETNAME: $BUCKET             USERNAME: $USER         DIR: /home/$USER/$BUCKET\n" >> /home/$USER/buckets3-$USER.log
+                echo "[+] - buckets3 was instaled to user $USER on /home/$USER/$BUCKET"
+
+                # Master File, this file cotains log for all VALID accounts
+                echo -e "DATE: $(date)          BUCKETNAME: $BUCKET             USERNAME: $USER         DIR: /home/$USER/$BUCKET\n" >> /home/buckets3.log
+
+                # Log File, this file contains log for all created accounts
+                echo -e "DATE: $(date)          BUCKETNAME: $BUCKET             USERNAME: $USER         DIR: /home/$USER/$BUCKET\n" >> /var/log/buckets3.log
+}
+
+function WCOME_TXT(){
+        echo "[+] - Creating Wellcome File"
+
+# ENGLISH
+echo -e "
+INSERT YOUR WELCOME TEXT HERE
+
+" > /home/$USER/readme.txt
+
+echo "[+] - Wellcome file created"
+}
+
+echo "[+] - OK, this is all we need
+
+|-------------------------------------------------------
+| BUCKETNAME: $BUCKET
+| USERNAME: $USER
+| PATH: /home/$USER/$BUCKET
+|-------------------------------------------------------
+"
+echo -e "Proced ?\n"
+select CONFIRM in "y" "n"
+        do
+        case $CONFIRM in
+        "y")
+
+        # CHECK IF USER EXIST
+        CHECK_USER=$(id $USER &>/dev/null && echo "Yes"||echo "Not installed"|grep -o  "No")
+        if [[ $CHECK_USER == "No" ]];then
+                echo "[!] - User $USER not found. adding."
+                useradd -d /home/$USER -m $USER
+                echo "[!] - Insert password"
+                read -ep "Password: " PASSW
+                echo "$USER:$PASSW"|chpasswd
+                echo "[+] - Done."
+        else
+                echo "[!] - User $USER already exist"
+        fi
+
+        # CHECK IF USER HAVE HOMEDIR
+        if [[ -d /home/$USER ]];then
+                echo -e "\n[+] - HomeDir for user $USER found."
+                echo "[+] - This script will mountpoint for user in /home/$USER/$BUCKET"
+                echo "[!] - Making the bucket dir."
+
+                if [[ -d /home/$USER/$BUCKET ]]
+                then
+                        echo "[+] - Bucket for user $USER already exist."
+                else
+                        mkdir /home/$USER/$BUCKET
+                        chmod 755 /home/$USER/$BUCKET
+                        chown $USER.$USER /home/$USER/$BUCKET
+                        echo "[+] - Mounting..."
+                        /usr/local/bin/s3fs $USER -o use_rrs -o allow_other -o default_acl=public-read /home/$USER/$BUCKET
+                        echo "[+] - Saving on fstab..."
+                        echo "#buckets3 for user $USER on /home/$USER/$BUCKET" >> /etc/fstab
+                        echo "s3fs#$BUCKET /home/$USER/$BUCKET fuse _netdev,allow_other,nodnscache,retries=5 0 0" >> /etc/fstab
+
+                        # DISABLE PERMSSION OF WRITE ON USER HOME FTP
+                        chmod 0555 /home/$USER/
+
+                        # CHECK IF IS MOUNTED
+                        echo "[!] - Checking if is mounted"
+                        MOUNTED=$(df -h|grep -o /home/$USER/$BUCKET)
+                        if [ -z "$MOUNTED" -a "$MOUNTED" != " " ];then
+                                echo "[+] - Bucket for $USER was mounted correctly"
+                        else
+                                echo "[!] - Warning, bucket for $USER NOT MOUNTED, ask L2/L3 to check it."
+                        fi
+
+                        LOG_FILES # CREATE LOG
+
+                        WCOME_TXT #INVOKE
+
+                        echo -e "[+] - All Done.\n"
+
+                        # CHECK IF FTP HAS ENABLED
+                        if [[ -e /etc/vsftpd/user_list ]];then
+                        CHECK_USER_FTP=$(grep $USER /etc/vsftpd/user_list)
+                                if [ -z "$CHECK_USER_FTP" -a "$CHECK_USER_FTP" != " " ];then
+                                        echo "[+] - Enabling FTP for $USER"
+                                        echo $USER >> /etc/vsftpd/user_list
+                                        /etc/init.d/vsftpd restart
+                                else
+                                        echo "[!] - User already has FTP enabled"
+                                fi
+                        fi
+                fi
+
+                exit
+        else
+                echo -e "\n[!] - HomeDir for user $USER not found."
+                echo -e "\n[!] - Creating directory"
+                mkdir /home/$USER && chown $USER.$USER /home/$USER && chmod 700 /home/$USER
+                echo "[!] - Making the bucket dir."
+
+                if [[ -d "/home/$USER/$BUCKET" ]];then
+                        echo "[+] - Directory $BUCKET for user $USER already exist."
+                else
+                        mkdir /home/$USER/$BUCKET
+                        chmod 755 /home/$USER/$BUCKET
+                        chown $USER.$USER /home/$USER/$BUCKET
+                        echo "[+] - Mounting..."
+                        /usr/local/bin/s3fs $USER -o use_rrs -o allow_other -o default_acl=public-read /home/$USER/$BUCKET
+                        echo "[+] - Saving on fstab..."
+                        echo "#buckets3 for user $USER on /home/$USER/$BUCKET " >> /etc/fstab
+                        echo "s3fs#$BUCKET /home/$USER/$BUCKET fuse _netdev,allow_other,nodnscache,retries=5 0 0" >> /etc/fstab
+
+                        # DISABLE PERMSSION OF WRITE ON USER HOME FTP
+                        chmod 0555 /home/$USER/
+
+                        # CHECK IF IS MOUNTED
+                        echo "[!] - Checking if is mounted"
+                        MOUNTED=$(df -h|grep /home/$USER/$BUCKET)
+                        if [ -z "$MOUNTED" -a "$MOUNTED" != " " ];then
+                                echo "[+] - Bucket for $USER was mounted correctly"
+                        else
+                                echo "[!] - Warning, bucket for $USER NOT MOUNTED, ask L2/L3 to check it."
+                        fi
+
+                        LOG_FILES # CREATE LOG
+
+                        WCOME_TXT #INVOKE
+
+                        echo -e "[+] - All Done.\n"
+
+                        # CHECK IF FTP HAS ENABLED TO USER
+                        if [[ -e /etc/vsftpd/user_list ]];then
+                        CHECK_USER_FTP=$(grep $USER /etc/vsftpd/user_list)
+                                if [ -z "$CHECK_USER_FTP" -a "$CHECK_USER_FTP" != " " ];then
+                                        echo "[+] - Enabling FTP for $USER"
+                                        echo $USER >> /etc/vsftpd/user_list
+                                        /etc/init.d/vsftpd restart
+                                else
+                                        echo "[!] - User already has FTP enabled"
+                                fi
+                        fi
+                fi
+                exit
+        fi
+        ;;
+        "n")
+        echo "[!] - Exiting..."
+                exit ;;
+        esac
+done
+fi
+
+if [[ $1 = "-r" ]]||[[ $1 = "--remove" ]];then
+        echo -e "\n[!] - Remove bucket process.\n"
+        read -ep "Insert Username to remove bucket: " BUCKET_R_USERNAME
+        echo "[!] - Searching bucket for user $BUCKET_R_USERNAME ...."
+        echo -e "\n" ; grep $BUCKET_R_USERNAME /home/buckets3.log ; echo -e "\n"
+
+        if [[ -z $BUCKET_R_USERNAME ]];then
+                echo "[!] - $BUCKET_R_USERNAME not found. Please inform PATH of bucket."
+        else
+                echo "[+] - Bucket for $BUCKET_R_USERNAME was found"
+        fi
+                read -ep "Insert Bucket Path: " BUCKET_R_PATH
+                echo "[+] - Checking if is mounted"
+                df -h|grep $BUCKET_R_PATH
+
+                if [[ ! -z $BUCKET_R_PATH ]];then
+
+                        # UMOUNT BUCKET
+                        umount -l $BUCKET_R_PATH
+                        echo "[+] - Bucket located as $BUCKET_R_PATH was stoped"
+                        df -h|grep $BUCKET_R_PATH
+
+                        # REMOVING ON LOGS
+                        BUCKET_R_LOG=$(echo "$BUCKET_R_PATH"|sed -e 's/\//\\\//g')
+                        sed -i "/$BUCKET_R_LOG=/d" /home/buckets3.log
+
+                        # REMOVING ON FSTAB
+                        BUCKET_R_FSTAB=$(echo "$BUCKET_R_PATH"|sed -e 's/\//\\\//g') # CONVERT / to \/ for sed work correct
+                        sed -i "/$BUCKET_R_FSTAB/d" /etc/fstab
+                else
+                        echo "[!] - Bucket $BUCKET_R_PATH not found"
+                fi
+        fi
+
+        if [ $1 == "--installftp" -a $1 == "-ftp" ];then
+
+        # CHECK IF WAS INSTALLED
+        FTP=$(rpm -qa|grep vsftp)
+        if [[ -z $FTP ]];then
+                echo -e "[!] - Installing FTP"
+                yum install -y vsftpd
+                sed -i 's/anonymous_enable=YES/anonymous_enable=NO/g' /etc/vsftpd/vsftpd.conf
+                ed -s /etc/vsftpd/vsftpd.conf <<< $'1i\npasv_enable=YES\n.\nwq'
+                ed -s /etc/vsftpd/vsftpd.conf <<< $'1i\npasv_min_port=1024\n.\nwq'
+                ed -s /etc/vsftpd/vsftpd.conf <<< $'1i\npasv_max_port=1048\n.\nwq'
+                ed -s /etc/vsftpd/vsftpd.conf <<< $'1i\nuserlist_deny=NO\n.\nwq'
+                ed -s /etc/vsftpd/vsftpd.conf <<< $'1i\npasv_address=CHANGE_HERE_IP\n.\nwq'
+
+                # GET PUBLICIP
+                IP=$(curl --silent http://ipecho.net/plain)
+                sed -i "s/pasv_address=CHANGE_HERE_IP/pasv_address=$IP/g" /etc/vsftpd/vsftpd.conf
+                sed -i 's/#chroot_local_user=YES/chroot_local_user=YES/g' /etc/vsftpd/vsftpd.conf
+                /etc/init.d/vsftpd restart
+
+        else
+                echo "FTP already installed"
+        fi
+fi
+
+if [[ $1 == "-h" ]]||[[ $2 == "--help" ]];then
+        echo -e "\nUsage: [-i|--install] [-e|--enable] [-r|--remove] [-f|--ftp] [-h|--help]
+                     [-f|--force]
+
+        -i      Install FuseS3 and FuseLib
+        -e      Create bucket on server
+        -i      Remove bucket from server
+        -f      Install VSTP ftp server
+        -h      Call this help
+        -f      Force argument, use with install if you need to reinstall all libs
+"
+exit
+fi
