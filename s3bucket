@@ -56,7 +56,7 @@ if [[ -n /usr/src/libfuse ]];then
         echo "[!] - Removing fuse"
         rm -rf /usr/local/src/fuse-2.9.4/
         cd /usr/local/src/
-        wget http://git.hostfox.com.br/am-s3/fuse-2.9.4.tar.gz
+        wget http://pkgs.fedoraproject.org/repo/pkgs/fuse/fuse-2.9.4.tar.gz/ecb712b5ffc6dffd54f4a405c9b372d8/fuse-2.9.4.tar.gz
         tar xzf fuse-2.9.4.tar.gz
         cd fuse-2.9.4
         ./configure --prefix=/usr/local
@@ -67,7 +67,7 @@ if [[ -n /usr/src/libfuse ]];then
         fi
 else
         cd /usr/local/src/
-        wget http://git.hostfox.com.br/am-s3/fuse-2.9.4.tar.gz
+        wget http://pkgs.fedoraproject.org/repo/pkgs/fuse/fuse-2.9.4.tar.gz/ecb712b5ffc6dffd54f4a405c9b372d8/fuse-2.9.4.tar.gz
         tar xzf fuse-2.9.4.tar.gz
         cd fuse-2.9.4
         ./configure --prefix=/usr/local
@@ -130,7 +130,7 @@ fi
 # ENABLE BUCKET
 if [[ "$1" == "-e" ]]||[[ "$1" = "--enable" ]];then
 echo -e "\n-----------------------------------------------------------------
-                        HostFox - buckets3
+                        S3BUCKET - buckets3
 -----------------------------------------------------------------\n"
         read -ep "Insert the bucket name: " BUCKET
         read -ep "Insert the username to install bucket: " USER
