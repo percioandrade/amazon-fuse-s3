@@ -94,10 +94,10 @@ if [[ $1 == "--install" ]]||[[ $1 == "-i" ]];then
                 read -rep "Insert AWS Key: " ACESSKEY
                 read -rep "Insert AWS PrivateKey: " PRIVATEKEY
                 echo "$ACESSKEY:$PRIVATEKEY" > ~/.passwd-s3fs
-                        if [[ -z $ACESSKEY ]] && [[ -z $PRIVATEKEY ]];then
-                                echo "[+] - All values are empty,try again."
-                                exit
-                        fi
+                if [[ -z $ACESSKEY ]] && [[ -z $PRIVATEKEY ]];then
+                        echo "[+] - All values are empty,try again."
+                        exit
+                fi
                 touch "$HOME/.passwd-s3fs" # on root
                 chmod 600 "$HOME/.passwd-s3fs"
                 echo user_allow_other >> /etc/fuse.conf # Enable normal users to access on FTP
@@ -159,7 +159,7 @@ select CONFIRM in "y" "n"
         "y")
 
         # CHECK IF USER EXIST
-        CHECK_USER=$(id "$USER" &>/dev/null && echo "Yes"||echo "Not installed"|grep -o "No"||echo "User can not be added")
+        CHECK_USER=$(id "$USER" &>/dev/null && echo "Yes"||echo "Not installed"|grep -o "No"||echo "Not Found")
         if [[ $CHECK_USER == "No" ]];then
                 echo "[!] - User $USER not found. adding."
                 useradd -d $USERPATH/"$USER" -m "$USER"
@@ -176,64 +176,61 @@ select CONFIRM in "y" "n"
                 echo -e "\n[+] - HomeDir for user $USER found."
                 echo "[+] - This script will mountpoint for user in $USERPATH/$USER/$BUCKET"
                 echo "[!] - Making the bucket dir."
-
          else
                 echo -e "\n[!] - HomeDir for user $USER not found."
                 echo -e "\n[!] - Creating directory"
                 mkdir "$USERPATH/$USER" && chown "$USER.$USER" "$USERPATH/$USER" && chmod 700 "$USERPATH/$USER"
                 echo "[!] - Making the bucket dir."
-
         fi
 
-        if [[ -d $USERPATH/$USER/$BUCKET ]]
-                then
-                        echo "[!] - Bucket for user $USER already exist."
-                        echo "[!] - Remove first, after run this script again"
-                else
-                        mkdir "$USERPATH/$USER/$BUCKET"
-                        chmod 755 "$USERPATH/$USER/$BUCKET"
-                        chown "$USER.$USER" "$USERPATH/$USER/$BUCKET"
-                        echo "[+] - Mounting..."
-                        /usr/local/bin/s3fs "$USER" -o use_rrs -o allow_other -o default_acl=public-read "$USERPATH/$USER/$BUCKET"
-                        echo "[+] - Saving on fstab..."
-                        echo "#buckets3 for user $USER on $USERPATH/$USER/$BUCKET" >> /etc/fstab
-                        echo "s3fs#$BUCKET $USERPATH/$USER/$BUCKET fuse _netdev,allow_other,nodnscache,retries=5 0 0" >> /etc/fstab
+        if [[ -d $USERPATH/$USER/$BUCKET ]];then
+                echo "[!] - Bucket for user $USER already exist."
+                echo "[!] - Remove first, after run this script again"
+        else
+                mkdir "$USERPATH/$USER/$BUCKET"
+                chmod 755 "$USERPATH/$USER/$BUCKET"
+                chown "$USER.$USER" "$USERPATH/$USER/$BUCKET"
+                echo "[+] - Mounting..."
+                /usr/local/bin/s3fs "$USER" -o use_rrs -o allow_other -o default_acl=public-read "$USERPATH/$USER/$BUCKET"
+                echo "[+] - Saving on fstab..."
+                echo "#buckets3 for user $USER on $USERPATH/$USER/$BUCKET" >> /etc/fstab
+                echo "s3fs#$BUCKET $USERPATH/$USER/$BUCKET fuse _netdev,allow_other,nodnscache,retries=5 0 0" >> /etc/fstab
 
-                        # DISABLE PERMSSION OF WRITE ON USER HOME FTP
-                        chmod 0555 "$USERPATH/$USER/"
+                # DISABLE PERMSSION OF WRITE ON USER HOME FTP
+                chmod 0555 "$USERPATH/$USER/"
 
-                        # CHECK IF IS MOUNTED
-                        echo "[!] - Checking if is mounted"
-                        MOUNTED=$(df -h|grep -o "$USERPATH/$USER/$BUCKET")
+                # CHECK IF IS MOUNTED
+                echo "[!] - Checking if is mounted"
+                MOUNTED=$(df -h|grep -o "$USERPATH/$USER/$BUCKET")
                         if [[ -z "$MOUNTED" ]]||[[ "$MOUNTED" != " " ]];then
                                 echo "[+] - Bucket for $USER was mounted correctly"
                         else
                                 echo "[!] - Warning, bucket for $USER NOT MOUNTED, ask L2/L3 to check it."
                         fi
 
-                        LOG_FILES # CREATE LOG
-                        WCOME_TXT #INVOKE
-                        echo -e "[+] - All Done.\n"
+                LOG_FILES # CREATE LOG
+                WCOME_TXT #INVOKE
+                echo -e "[+] - All Done.\n"
 
-                        # CHECK IF FTP HAS ENABLED
-                        if [[ -e /etc/vsftpd/user_list ]];then
-                        CHECK_USER_FTP=$(grep "$USER" /etc/vsftpd/user_list)
-                                if [[ -z "$CHECK_USER_FTP" ]] && [[ "$CHECK_USER_FTP" != " " ]];then
-                                        echo "[+] - Enabling FTP for $USER"
-                                        echo "$USER" >> /etc/vsftpd/user_list
-                                        /etc/init.d/vsftpd restart
-                                else
-                                        echo "[!] - User already has FTP enabled"
-                                fi
+                # CHECK IF FTP HAS ENABLED
+                if [[ -e "/etc/vsftpd/user_list" ]];then
+                CHECK_USER_FTP=$(grep "$USER" /etc/vsftpd/user_list)
+                        if [[ -z "$CHECK_USER_FTP" ]] && [[ "$CHECK_USER_FTP" != " " ]];then
+                                echo "[+] - Enabling FTP for $USER"
+                                echo "$USER" >> /etc/vsftpd/user_list
+                                /etc/init.d/vsftpd restart
+                        else
+                                echo "[!] - User already has FTP enabled"
                         fi
                 fi
-                exit
-                ;;
+        fi
+        exit
+        ;;
         "n")
         echo "[!] - Exiting..."
-                exit ;;
+        exit ;;
         esac
-done
+        done
 fi
 
 if [[ $1 = "-r" ]]||[[ $1 = "--remove" ]];then
