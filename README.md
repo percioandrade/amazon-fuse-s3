@@ -24,4 +24,15 @@ Examples:<br />
 <b>sh --enable</b>    ( This option mount a bucket for a user on your system )<br />
 <b>sh --ftp</b>       ( This option will install and configure VSFTP service to work with this script )<br />
 
+Screens:<br />
+<img src="http://i.imgur.com/yPDtfQL.png" />
+
+<br />
+
+<img src="http://i.imgur.com/3tzJUhi.png" />
+
+<br />
+
+<img src="http://i.imgur.com/R35QWtp.png" />
+
 If you have any doubts, please ask.
