@@ -20,9 +20,10 @@ Usage:<br />
 
 Examples:<br />
 
-<b>sh --install</b>   ( This option will compile S3Fuse in your system )<br />
-<b>sh --enable</b>    ( This option mount a bucket for a user on your system )<br />
-<b>sh --ftp</b>       ( This option will install and configure VSFTP service to work with this script )<br />
+<b>sh s3bucket -i</b>   ( This option will compile S3Fuse in your system )<br />
+<b>sh s3bucket -e</b>   ( This option mount a bucket for a user on your system )<br />
+<b>sh s3bucket -r</b>   (Remove bucket for an user)
+<b>sh s3bucket -ftp</b> ( This option will install and configure VSFTP service to work with this script )<br />
 
 Screens:<br />
 <img src="http://i.imgur.com/yPDtfQL.png" />
