@@ -2,26 +2,26 @@
 
 <h3>How to use:</h3>
 
-This script allow you to mount a S3 bucket in Linux Distribuition ( RHEL Based ).
-Uses S3Fuse ( https://github.com/s3fs-fuse/s3fs-fuse ) to mount Amazons3 on system and automatically add on fstab.
+This script allows to mount a S3 bucket in Linux Distribuition ( RHEL Based ).<br />
+Uses S3Fuse ( https://github.com/s3fs-fuse/s3fs-fuse ) to mount S3 Amazon on system and automatically adds on fstab.
 
-Usage:
-      [-i|--install] [-f|--force]
-      [-e|--enable] [-r|--remove] USER
-      [-ftp|--ftp]
-      [-h|--help]
+Usage:<br />
+      [-i|--install] [-f|--force]<br />
+      [-e|--enable] [-r|--remove] USER<br />
+      [-ftp|--ftp]<br />
+      [-h|--help]<br />
        
-      -i      Install FuseS3 and FuseLib
+      -i      Install the FuseS3 and FuseLib
       -e      Create bucket on server
       -i      Remove bucket from server
       -ftp    Install VSTP ftp server
       -h      Call this help
-      -f      Force argument, use with install if you need to reinstall all libs
+      -f      Force argument, use only if you need to reinstall all libs
 
-Examples:
+Examples:<br />
 
-<b>sh --install</b>   ( This option will compile S3Fuse in your system )
-<b>sh --enable</b>    ( This option enable a bucket for user on your system )
-<b>sh --ftp</b>       ( This option install and configure VSFTP to work with this script )
+<b>sh --install</b>   ( This option will compile S3Fuse in your system )<br />
+<b>sh --enable</b>    ( This option mount a bucket for a user on your system )<br />
+<b>sh --ftp</b>       ( This option will install and configure VSFTP service to work with this script )<br />
 
-If hou have any doubts, please ask.
+If you have any doubts, please ask.
